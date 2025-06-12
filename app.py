@@ -16,12 +16,12 @@ def load_data():
 
     df = df.rename(columns={"brand_name": "drug_name", "dosage_form": "form"})
 
-    strength_re = re.compile(r"\\(([^)]+)\\)")
+    strength_re = re.compile(r"\(([^)]+)\)")
     df["dose"] = (
         df["active_ingredients"]
         .str.extract(strength_re, expand=False)
         .fillna("")
-        .str.replace(r"\\s+", "", regex=True)
+        .str.replace(r"\s+", "", regex=True)
     )
 
     return (
@@ -37,13 +37,14 @@ except Exception as e:
     st.error(f"❌ Failed to load drugs.csv: {e}")
     st.stop()
 
-# ---------- UI INPUTS ----------
+# ---------- UI ----------
 data["label"] = (
     data["drug_name"] + " " + data["dose"] + " (" + data["form"].fillna("") + ", " + data["route"].fillna("") + ")"
 )
 choice = st.selectbox("Select a medication:", sorted(data["label"]))
 drug = data[data["label"] == choice].iloc[0]
 
+# ---------- PATIENT + PROVIDER ----------
 st.subheader("👤 Patient Info")
 patient_name = st.text_input("Patient Full Name")
 patient_dob = st.text_input("Date of Birth (MM/DD/YYYY)")
@@ -53,12 +54,14 @@ provider_name = st.text_input("Prescriber Name")
 provider_npi = st.text_input("NPI Number")
 provider_dea = st.text_input("DEA Number")
 
+# ---------- FREQUENCY ----------
 frequencies = [
     "once daily", "twice daily", "every 4 hours", "every 6 hours",
     "every 8 hours", "as needed for pain", "before meals", "before bedtime"
 ]
 selected_frequency = st.selectbox("Select Frequency", frequencies)
 
+# ---------- DISPENSING INFO ----------
 st.subheader("📦 Dispensing Info")
 auto_calc = st.checkbox("🧮 Auto-calculate quantity based on frequency & days supply")
 days_supply = st.number_input("Days Supply", min_value=1, value=10)
@@ -98,10 +101,12 @@ ______________________
 Signature
 """
 editable_text = st.text_area("📝 Edit Prescription Text", value=default_rx.strip(), height=300)
+
+# ---------- DISPLAY ----------
 st.subheader("✅ Final Prescription")
 st.code(editable_text.strip(), language="markdown")
 
-# ---------- TXT DOWNLOAD ----------
+# ---------- DOWNLOAD TXT ----------
 buffer = io.StringIO()
 buffer.write(editable_text.strip())
 st.download_button("📥 Download TXT", buffer.getvalue(), file_name="prescription.txt")
@@ -110,14 +115,6 @@ st.download_button("📥 Download TXT", buffer.getvalue(), file_name="prescripti
 def generate_pdf(data):
     pdf = FPDF()
     pdf.add_page()
-
-    # Add logo
-    logo_path = "CRITICAL CARE EXPERTS logo.png.png"  # Ensure this is in the same folder
-    try:
-        pdf.image(logo_path, x=10, y=8, w=40)
-    except RuntimeError:
-        pass  # Logo failed to load, continue without it
-
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, "Prescription Form", ln=True, align="C")
     pdf.set_font("Arial", size=12)
