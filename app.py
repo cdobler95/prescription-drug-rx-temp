@@ -6,7 +6,6 @@ from fpdf import FPDF
 
 st.title("💊 Prescription Generator")
 
-# ---------- DATA LOADING ----------
 @st.cache_data
 def load_data():
     try:
@@ -37,14 +36,12 @@ except Exception as e:
     st.error(f"❌ Failed to load drugs.csv: {e}")
     st.stop()
 
-# ---------- UI ----------
 data["label"] = (
     data["drug_name"] + " " + data["dose"] + " (" + data["form"].fillna("") + ", " + data["route"].fillna("") + ")"
 )
 choice = st.selectbox("Select a medication:", sorted(data["label"]))
 drug = data[data["label"] == choice].iloc[0]
 
-# ---------- PATIENT + PROVIDER ----------
 st.subheader("👤 Patient Info")
 patient_name = st.text_input("Patient Full Name")
 patient_dob = st.text_input("Date of Birth (MM/DD/YYYY)")
@@ -54,14 +51,12 @@ provider_name = st.text_input("Prescriber Name")
 provider_npi = st.text_input("NPI Number")
 provider_dea = st.text_input("DEA Number")
 
-# ---------- FREQUENCY ----------
 frequencies = [
     "once daily", "twice daily", "every 4 hours", "every 6 hours",
     "every 8 hours", "as needed for pain", "before meals", "before bedtime"
 ]
 selected_frequency = st.selectbox("Select Frequency", frequencies)
 
-# ---------- DISPENSING INFO ----------
 st.subheader("📦 Dispensing Info")
 auto_calc = st.checkbox("🧮 Auto-calculate quantity based on frequency & days supply")
 days_supply = st.number_input("Days Supply", min_value=1, value=10)
@@ -80,7 +75,6 @@ refills = st.selectbox("Refills", list(range(0, 6)))
 daw = st.checkbox("☑️ Dispense as Written (DAW)")
 controlled = st.checkbox("⚠️ Controlled Substance")
 
-# ---------- RX TEXT ----------
 default_rx = f"""
 Patient: {patient_name}
 DOB: {patient_dob}
@@ -101,17 +95,13 @@ ______________________
 Signature
 """
 editable_text = st.text_area("📝 Edit Prescription Text", value=default_rx.strip(), height=300)
-
-# ---------- DISPLAY ----------
 st.subheader("✅ Final Prescription")
 st.code(editable_text.strip(), language="markdown")
 
-# ---------- DOWNLOAD TXT ----------
 buffer = io.StringIO()
 buffer.write(editable_text.strip())
 st.download_button("📥 Download TXT", buffer.getvalue(), file_name="prescription.txt")
 
-# ---------- PDF DOWNLOAD ----------
 def generate_pdf(data):
     pdf = FPDF()
     pdf.add_page()
