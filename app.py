@@ -2,7 +2,6 @@ import re
 import streamlit as st
 import pandas as pd
 import io
-from fpdf import FPDF
 
 st.title("💊 Prescription Generator")
 
@@ -42,24 +41,25 @@ data["label"] = (
 choice = st.selectbox("Select a medication:", sorted(data["label"]))
 drug = data[data["label"] == choice].iloc[0]
 
-st.subheader("👤 Patient Info")
+# Patient & provider info
 patient_name = st.text_input("Patient Full Name")
 patient_dob = st.text_input("Date of Birth (MM/DD/YYYY)")
-
-st.subheader("🩺 Prescriber Info")
 provider_name = st.text_input("Prescriber Name")
 provider_npi = st.text_input("NPI Number")
 provider_dea = st.text_input("DEA Number")
 
+# Frequency dropdown
 frequencies = [
     "once daily", "twice daily", "every 4 hours", "every 6 hours",
     "every 8 hours", "as needed for pain", "before meals", "before bedtime"
 ]
 selected_frequency = st.selectbox("Select Frequency", frequencies)
 
+# Quantity + Days supply
 st.subheader("📦 Dispensing Info")
 auto_calc = st.checkbox("🧮 Auto-calculate quantity based on frequency & days supply")
 days_supply = st.number_input("Days Supply", min_value=1, value=10)
+
 if auto_calc:
     freq_map = {
         "once daily": 1, "twice daily": 2, "every 4 hours": 6,
@@ -75,6 +75,7 @@ refills = st.selectbox("Refills", list(range(0, 6)))
 daw = st.checkbox("☑️ Dispense as Written (DAW)")
 controlled = st.checkbox("⚠️ Controlled Substance")
 
+# RX text block
 default_rx = f"""
 Patient: {patient_name}
 DOB: {patient_dob}
@@ -94,64 +95,12 @@ NPI: {provider_npi}    DEA: {provider_dea}
 ______________________
 Signature
 """
-editable_text = st.text_area("📝 Edit Prescription Text", value=default_rx.strip(), height=300)
+
+editable_text = st.text_area("📝 Edit Prescription", value=default_rx.strip(), height=300)
 st.subheader("✅ Final Prescription")
 st.code(editable_text.strip(), language="markdown")
 
+# TXT download
 buffer = io.StringIO()
 buffer.write(editable_text.strip())
-st.download_button("📥 Download TXT", buffer.getvalue(), file_name="prescription.txt")
-
-def generate_pdf(data):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, "Prescription Form", ln=True, align="C")
-    pdf.set_font("Arial", size=12)
-    pdf.ln(10)
-    pdf.cell(200, 10, f"Patient: {data['patient_name']}", ln=True)
-    pdf.cell(200, 10, f"DOB: {data['dob']}", ln=True)
-    pdf.ln(5)
-    pdf.cell(200, 10, f"RX: {data['drug_name']} {data['dose']}", ln=True)
-    pdf.multi_cell(0, 10, f"Sig: Take 1 {data['form']} via {data['route']} {data['frequency']}.")
-    pdf.cell(200, 10, f"Quantity: {data['quantity']}", ln=True)
-    pdf.cell(200, 10, f"Days Supply: {data['days_supply']}", ln=True)
-    pdf.cell(200, 10, f"Refills: {data['refills']}", ln=True)
-    pdf.cell(200, 10, f"Dispense as Written: {data['daw']}", ln=True)
-    if data['controlled'] == "Yes":
-        pdf.set_text_color(220, 50, 50)
-        pdf.multi_cell(0, 10, "WARNING: This is a Controlled Substance. Follow federal guidelines.")
-        pdf.set_text_color(0, 0, 0)
-    pdf.ln(5)
-    pdf.cell(200, 10, f"Prescriber: {data['provider_name']}", ln=True)
-    pdf.cell(200, 10, f"NPI: {data['npi']}    DEA: {data['dea']}", ln=True)
-    pdf.ln(20)
-    pdf.cell(200, 10, "_________________________", ln=True)
-    pdf.cell(200, 10, "Signature", ln=True)
-    return pdf
-
-if st.button("📄 Generate PDF"):
-    rx_pdf = generate_pdf({
-        "patient_name": patient_name,
-        "dob": patient_dob,
-        "drug_name": drug.drug_name,
-        "dose": drug.dose,
-        "form": drug.form,
-        "route": drug.route,
-        "frequency": selected_frequency,
-        "quantity": quantity,
-        "days_supply": days_supply,
-        "refills": refills,
-        "daw": "Yes" if daw else "No",
-        "controlled": "Yes" if controlled else "No",
-        "provider_name": provider_name,
-        "npi": provider_npi,
-        "dea": provider_dea
-    })
-    pdf_bytes = rx_pdf.output(dest='S').encode('latin1')
-    st.download_button(
-        label="📥 Download PDF",
-        data=pdf_bytes,
-        file_name="prescription.pdf",
-        mime="application/pdf"
-    )
+st.download_button("📥 Download Prescription (.txt)", buffer.getvalue(), file_name="prescription.txt")
